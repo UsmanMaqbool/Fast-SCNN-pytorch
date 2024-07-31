@@ -21,7 +21,8 @@ class Evaluator(object):
         # image transform
         input_transform = transforms.Compose([
             transforms.ToTensor(),
-            transforms.Normalize([.485, .456, .406], [.229, .224, .225]),
+            transforms.Normalize(mean=[0.48501960784313836, 0.4579568627450961, 0.4076039215686255],
+                                    std=[0.00392156862745098, 0.00392156862745098, 0.00392156862745098]),
         ])
         # dataset and dataloader
         val_dataset = get_segmentation_dataset(args.dataset, split='val', mode='testval',

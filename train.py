@@ -71,7 +71,8 @@ class Trainer(object):
         # image transform
         input_transform = transforms.Compose([
             transforms.ToTensor(),
-            transforms.Normalize([.485, .456, .406], [.229, .224, .225]),
+            transforms.Normalize(mean=[0.48501960784313836, 0.4579568627450961, 0.4076039215686255],
+                                    std=[0.00392156862745098, 0.00392156862745098, 0.00392156862745098]),
         ])
         # dataset and dataloader
         data_kwargs = {'transform': input_transform, 'base_size': args.base_size, 'crop_size': args.crop_size}

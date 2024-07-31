@@ -28,7 +28,8 @@ class CitySegmentation(data.Dataset):
     >>> # Transforms for Normalization
     >>> input_transform = transforms.Compose([
     >>>     transforms.ToTensor(),
-    >>>     transforms.Normalize((.485, .456, .406), (.229, .224, .225)),
+    >>>     transforms.Normalize(mean=[0.48501960784313836, 0.4579568627450961, 0.4076039215686255],
+                                    std=[0.00392156862745098, 0.00392156862745098, 0.00392156862745098]),
     >>> ])
     >>> # Create Dataset
     >>> trainset = CitySegmentation(split='train', transform=input_transform)
@@ -40,7 +41,7 @@ class CitySegmentation(data.Dataset):
     BASE_DIR = 'cityscapes'
     NUM_CLASS = 19
 
-    def __init__(self, root='./datasets/citys', split='train', mode=None, transform=None,
+    def __init__(self, root='./datasets/citys/', split='train', mode=None, transform=None,
                  base_size=520, crop_size=480, **kwargs):
         super(CitySegmentation, self).__init__()
         self.root = root
