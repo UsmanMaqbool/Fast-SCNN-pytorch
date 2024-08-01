@@ -13,9 +13,6 @@ transforms.Normalize(mean=[0.48501960784313836, 0.4579568627450961, 0.4076039215
 ### Setting up
 
 ```sh
-
-
-
 # Download using the above links
 cd /home/leo/usman_ws/datasets
 unzip ~/Downloads/leftImg8bit_trainvaltest.zip -d citys/

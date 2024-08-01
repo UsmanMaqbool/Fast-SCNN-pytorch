@@ -33,7 +33,7 @@ parser.add_argument('--data_dir', default="/home/leo/usman_ws/codes/Fast-SCNN-py
 parser.add_argument('--outdir', default='./test_result', type=str,
                     help='path to save the predict result')
 parser.add_argument('--cropped', action='store_true', default=False)
-parser.add_argument('--masked', action='store_true', default=True)
+parser.add_argument('--mask', action='store_true', default=True)
 parser.add_argument('--cpu', dest='cpu', action='store_true', default=True)
 parser.set_defaults(cpu=False)
 
@@ -52,8 +52,8 @@ def save_image(tensor_image, file_name):
     """
     # Define the inverse normalization
     inv_normalize = transforms.Normalize(
-        mean=[-0.485/0.229, -0.456/0.224, -0.406/0.225],
-        std=[1/0.229, 1/0.224, 1/0.225]
+       mean=[-123.5, -116.75, -103.95],
+        std=[255, 255, 255]
     )
 
     # Move the tensor to CPU if it's on GPU
@@ -76,48 +76,49 @@ def save_image(tensor_image, file_name):
 
 
 def relabel(img):
-    '''
+    """
     This function relabels the predicted labels so that cityscape dataset can process
-    :param img:
-    :return:
-    '''
-
-     ### Road 0 + Sidewalk 1
+    :param img: The image array to be relabeled
+    :return: The relabeled image array
+    """
+    ### Road 0 + Sidewalk 1
     img[img == 1] = 1
     img[img == 0] = 1
 
     ### building 2 + wall 3 + fence 4
-    img[img == 4] = 4
-    img[img == 3] = 4
-    img[img == 2] = 4
+    img[img == 2] = 2
+    img[img == 3] = 2
+    img[img == 4] = 2
+
+    ### vegetation 8 + Terrain 9
+    img[img == 9] = 3
+    img[img == 8] = 3
+    
+    ### Sky 10
+    img[img == 10] = 5
 
     ### Pole 5 + Traffic Light 6 + Traffic Signal 7
-    img[img == 7] = 7
-    img[img == 6] = 7
-    img[img == 5] = 7
-    
-    ### vegetation 8 + Terrain 9
-    img[img == 9] = 9
-    img[img == 8] = 9
-
-    ### Sky 10
-    img[img == 10] = 10
-    
-    ## Person
-    img[img == 11] = 11
- 
-    # cars 13 + truck 14 + bus 15 + train 16
-    img[img == 16] = 16
-    img[img == 15] = 16
-    img[img == 14] = 16
-    img[img == 13] = 16
+    img[img == 7] = 4
+    img[img == 6] = 4
+    img[img == 5] = 4
     
     ## Rider 12 + motorcycle 17 + bicycle 18
-    img[img == 18] = 18
-    img[img == 17] = 18
-    img[img == 12] = 18
+    img[img == 18] = 6
+    img[img == 17] = 6
+    img[img == 12] = 6
 
 
+    # cars 13 + truck 14 + bus 15 + train 16
+    img[img == 16] = 7
+    img[img == 15] = 7
+    img[img == 14] = 7
+    img[img == 13] = 7
+
+    ## Person
+    img[img == 11] = 8
+
+
+    
     ### Don't need, make these 255
     ## Background
     img[img == 19] = 255
@@ -131,15 +132,15 @@ def demo():
         os.makedirs(args.outdir)
 
     # image transform
-    # transform1 = transforms.Compose([
-    #     transforms.ToTensor(),
-    #     transforms.Normalize(mean=[0.48501960784313836, 0.4579568627450961, 0.4076039215686255],
-    #                                                    std=[0.00392156862745098, 0.00392156862745098, 0.00392156862745098]),
-    # ])
     transform = transforms.Compose([
         transforms.ToTensor(),
-        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+        transforms.Normalize(mean=[0.48501960784313836, 0.4579568627450961, 0.4076039215686255],
+                                                       std=[0.00392156862745098, 0.00392156862745098, 0.00392156862745098]),
     ])
+    # transform = transforms.Compose([
+    #     transforms.ToTensor(),
+    #     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+    # ])
 
     image_list = glob.glob(args.data_dir + os.sep + '*.' + args.img_extn)
     print(image_list)
@@ -162,9 +163,9 @@ def demo():
         outputs = model(batch)
 
     ### for stage 1 and stage 2, move to the cpu first
-    pred_all_c = torch.argmax(outputs[0], 1).cpu().data.numpy()
+    pred_all_c = torch.argmax(outputs[0], 1).squeeze(0).cpu().data.numpy()
     ### for stage 3
-    pred_all_g = torch.argmax(outputs[0], 1)
+    pred_all_g = torch.argmax(outputs[0], 1).squeeze(0)
 
     # # Stage 1
     # ## All Predictions of 20 classes
@@ -189,39 +190,41 @@ def demo():
     # bicycle 18
     # unknown 19
 
-    ## Uncomment to save the S1 Images
+
     for jj in range(N):
+        ## Stage 1
         ## current image image_list[jj]
         mask = get_color_pallete(pred_all_c[jj], args.dataset)
         outname = os.path.splitext(os.path.split(image_list[jj])[-1])[0] + '-s1.png'
         mask.save(os.path.join(args.outdir, outname))
 
-    ## Stage 2
-    # Without merge
-    # pred = pred_all_c.astype(np.uint8)
-    ## Merge Labels
-    pred = relabel(pred_all_c.astype(np.uint8))
-    pred_g_merge = relabel(pred_all_g)
+        ## Stage 2
+        # Without merge
+        # pred = pred_all_c.astype(np.uint8)
+        ## Merge Labels
+        pred = relabel(pred_all_c.astype(np.uint8))
+        pred_g_merge = relabel(pred_all_g)
 
-    # Uncomment to save the S2 Images
-    for jj in range(N):
         ## current image image_list[jj]
         mask = get_color_pallete(pred[jj], args.dataset)
         outname = os.path.splitext(os.path.split(image_list[jj])[-1])[0] + '-s2.png'
         mask.save(os.path.join(args.outdir, outname))
 
-    to_pil = ToPILImage()
-    NB = 5
-    ## Stage 3
-    ## Crop Certain Images / Masks
-    ## Multiply with the mask and remove the zero paddings
-    for jj in range(N):
+        to_pil = ToPILImage()
+        NB = 10
+        
+        ## Stage 3
+        ## Crop Certain Images / Masks
+        ## Multiply with the mask and remove the zero paddings
+        
         # run for each image
-        all_label_mask = pred_g_merge[jj]
+        all_label_mask_merge = pred_g_merge[jj]
+        all_label_mask_no_merge = pred_all_g[jj]
+        all_label_mask = all_label_mask_no_merge
         labels_all, label_count_all = all_label_mask.unique(return_counts=True)
         
         # Create a boolean mask where label_count values are >= 5000
-        mask_t = label_count_all >= 5000
+        mask_t = label_count_all >= 15000
 
         # Use the mask to filter labels and label_count
         labels = labels_all[mask_t]
@@ -229,41 +232,32 @@ def demo():
         
         masks = all_label_mask == labels[:, None, None]
         regions = masks_to_boxes(masks.to(torch.float32))
-        boxesd = regions.to(torch.long)
+        boxes = regions.to(torch.long)
 
         image = batch[jj]
         _, H, W = image.shape
         rsizet = transforms.Resize((H, W))
         sub_nodes = []
-        
-        # run for each label
-        for i, label in enumerate(labels):
-            binary_mask = (all_label_mask == label).float()
-            if args.cropped:
-                x_min, y_min, x_max, y_max = boxesd[i]
-                masked_image = image[:, y_min:y_max, x_min:x_max]
-                if args.masked:
-                    # whole->masked->cropped->resize
-                    masked_image = masked_image * binary_mask[y_min:y_max, x_min:x_max]
-                masked_image = rsizet(masked_image)
-            else:
-                # masked->whole
-                masked_image = image * binary_mask
-            
-            # sub_nodes.append(masked_image.unsqueeze(0))
-            
-            # outname = f"{os.path.splitext(os.path.basename(image_list[jj]))[0]}-s3-label{label}.png"
-            # save_image(masked_image, os.path.join(args.outdir, outname))
+        pre_l2 = batch[jj]
 
-        # Handle the last label separately
-        if args.masked:
-            binary_mask_all = 1 - (all_label_mask == labels[-1]).float()
-            masked_image = image * binary_mask_all
-        else:
-            masked_image = image
-            
-        outname = os.path.splitext(os.path.split(image_list[jj])[-1])[0] + f'-s3-label{labels[-1]}.png'
-        # save_image(masked_image, os.path.join(args.outdir, outname))
+
+        # run for each label
+        if args.mask:
+                for i, label in enumerate(labels):
+                    if len(sub_nodes) < NB:
+                        binary_mask = (all_label_mask == label).float()
+                        x_min, y_min, x_max, y_max = boxes[i]
+                        
+                        masked_image = pre_l2[:, y_min:y_max, x_min:x_max] * binary_mask[y_min:y_max, x_min:x_max]
+                        outname = f"{os.path.splitext(os.path.basename(image_list[jj]))[0]}-s3-label{label}-m.png"
+                        save_image(masked_image, os.path.join(args.outdir, outname))
+                        embed_image = rsizet(pre_l2[:, y_min:y_max, x_min:x_max] + masked_image)
+                        outname = f"{os.path.splitext(os.path.basename(image_list[jj]))[0]}-s3-label{label}-c.png"
+                        save_image(embed_image, os.path.join(args.outdir, outname))
+                sub_nodes.append(embed_image.unsqueeze(0))
+                
+        # outname = os.path.splitext(os.path.split(image_list[jj])[-1])[0] + f'-s3-label{labels[-1]}.png'
+        # # save_image(pre_l2, os.path.join(args.outdir, outname))
 
         if len(sub_nodes) < NB:
             bb_x = [
@@ -275,7 +269,7 @@ def demo():
             ]
             
             for i in range(len(bb_x) - len(sub_nodes)):
-                x_cropped = masked_image[:, bb_x[i][1]:bb_x[i][3], bb_x[i][0]:bb_x[i][2]]
+                x_cropped = pre_l2[:, bb_x[i][1]:bb_x[i][3], bb_x[i][0]:bb_x[i][2]]
                 sub_nodes.append(rsizet(x_cropped.unsqueeze(0)))
                 outname = f"{os.path.splitext(os.path.basename(image_list[jj]))[0]}-s3-cropped{i}.png"
                 save_image(x_cropped, os.path.join(args.outdir, outname))
